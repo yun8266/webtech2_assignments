@@ -8,34 +8,34 @@ os.environ['FLASK_ENV'] ='development'
 from flask import Flask,request,make_response,send_file
 
 inital_data = {
-    "Topics": [
+    "topics": [
         {
-            "Name": "Computer Science",
-            "Abbr": "CSE",
+            "name": "Computer Science",
+            "abbr": "CSE",
             "seats": 500
         },
         {
-            "Name": "Electronics and Communication Engineering",
-            "Abbr": "ECE",
-            "seats": 4
+            "name": "Electronics and Communication Engineering",
+            "abbr": "ECE",
+            "seats": 2
         },
         {
-            "Name": "Electrical and Electronics Engineering",
-            "Abbr": "EEE",
+            "name": "Electrical and Electronics Engineering",
+            "abbr": "EEE",
             "seats": 500
         },
         {
-            "Name": "Mechanincal Engineering",
-            "Abbr": "ME",
-            "seats": 0
+            "name": "Mechanincal Engineering",
+            "abbr": "ME",
+            "seats": 1
         },
         {
-            "Name": "Biotech",
-            "Abbr": "BT",
+            "name": "Biotech",
+            "abbr": "BT",
             "seats": 500
         }
     ],
-    "Selection":{}
+    "selection":{}
 }
 
 app =Flask("seatserver",static_folder=os.getcwd(),static_url_path='/')
@@ -91,18 +91,18 @@ def select():
     selection = body['selection']
     name = body['name']
 
-    if data['Topics'][selection]['seats']==0:
+    if data['topics'][selection]['seats']==0:
         return make_response("Unavailable",403)
 
-    if name in data['Selection']:
-        previous = data['Selection'][name]
-        data['Topics'][previous]['seats']+=1
+    if name in data['selection']:
+        previous = data['selection'][name]
+        data['topics'][previous]['seats']+=1
 
-    data['Topics'][selection]['seats']-=1
-    data['Selection'][name] = selection 
+    data['topics'][selection]['seats']-=1
+    data['selection'][name] = selection 
     
     resp = {
-        'Topics':data['Topics'],
+        'topics':data['topics'],
         'selection':selection
     }
 
@@ -118,11 +118,11 @@ def unselect():
     selection = body['selection']
     # verify if student has indeed selected this branch
     # this will deal with requests being timed out on client not update seat count more than once
-    if data['Selection'][name]==selection: 
-        data['Selection'].pop(name,None)
-        data['Topics'][selection]['seats']+=1
+    if data['selection'][name]==selection: 
+        data['selection'].pop(name,None)
+        data['topics'][selection]['seats']+=1
     resp = {
-        'Topics':data['Topics']
+        'topics':data['topics']
     }
     save_data(data)
     return json_response(resp) 
@@ -134,10 +134,10 @@ def getall():
     body = request.get_json()
 
     resp = {
-        'Topics':data['Topics']
+        'topics':data['topics']
     }
-    if body['name'] in data['Selection']:
-        resp['selection'] = data['Selection'][body['name']]
+    if body['name'] in data['selection']:
+        resp['selection'] = data['selection'][body['name']]
     return json_response(resp)
 
 # Extra routes for fallback

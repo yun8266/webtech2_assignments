@@ -45,6 +45,7 @@
     let interval=0;
     let timeout = 500
     let refreshInterval = 5000
+    let inputAllowed = true;
 
     // List of URL's with fallback
     const selectURLS = [
@@ -61,6 +62,31 @@
         '/getall',
         '/getall2'
     ]
+
+    function allowInput(){
+        if (allowInput==false)
+            allowInput = true;
+    }
+
+    function blockInput(){
+        if (allowInput==true)
+            allowInput = false;
+    }
+    
+    function clickHandler(elem){
+        if (allowInput) {
+            if (elem.classList.contains("active") ) {
+                unselect(elem)
+            }
+            else if (!elem.classList.contains("unavailable")) {
+                select(elem)
+            }
+        }
+        else {
+            showError("Wait for previous request to be completed")
+        }
+    }
+
 
     // Start auto refresh ( This calls the update function periodically)
     function startAutoRefresh(){
@@ -139,6 +165,7 @@
     // If timed out retry in 1 second. Till then show a banner saying Server Timeout
     async function init(){
         try{
+            blockInput()
             startLoading()
             await sleep(1000)
             let res = await requestWithFallack(getAllURLS,'post',{name})
@@ -147,17 +174,19 @@
             stopLoading()
             hideError()
             showBranches()
+            allowInput()
         }
         catch(e){
             if (e.type=="status"){
                 showError("Unexpected Server Error")
             }
             else {
+                console.log(e)
                 showError("Server Timeout")
             }
             stopAutoRefresh()
             hideBranches()
-            setTimeout(init,1000) 
+            setTimeout(init,1000) // call init again in one second
         }
     }
 
@@ -165,6 +194,7 @@
     // If timed out retry in 1 second. Till then show a banner saying Server Timeout
     async function update(){
         try{
+            blockInput()
             startLoading()
             await sleep(200)
             let res = await requestWithFallack(getAllURLS,'post',{name})
@@ -172,6 +202,7 @@
             stopLoading()
             hideError()
             showBranches()
+            allowInput()
         }
         catch(e){
             if (e.type=="status"){
@@ -186,6 +217,7 @@
 
     // Unselect a given branch. Show errors similar to above functions
     async function unselect(el){
+        blockInput()
         startLoading()
         stopAutoRefresh()
         try {
@@ -204,11 +236,13 @@
         }
         startAutoRefresh()
         stopLoading()
+        allowInput()
     }
 
     // Select a given branch. Show errors similar to other branches. 
     // This is the only place where 403 can occur in normal circumstances.
     async function select(el){
+        blockInput()
         startLoading()
         stopAutoRefresh()
         try {
@@ -231,6 +265,7 @@
         }
         startAutoRefresh()
         stopLoading()
+        allowInput()
     }
 
     init()

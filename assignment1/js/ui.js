@@ -8,6 +8,7 @@ function stopLoading(){
     document.querySelector(".loading").style.display="none";
 }
 
+// Hide the branches. This happens when there is a error in update
 function hideBranches(){
     document.querySelector(".branches").style.display = "none"
 }
@@ -34,25 +35,18 @@ function hideError(){
     document.querySelector(".error").style.display ="none"
 }
 
-function clickHandler(elem){
-    if (elem.classList.contains("active") ) {
-        unselect(elem)
-    }
-    else if (!elem.classList.contains("unavailable")) {
-        select(elem)
-    }
-}
+
 console.log()
 
 // Initalizes UI with given data array
 // This creates elements
 function initUI(data){
     const b = document.querySelector(".branches")
-    const next = data.Topics.forEach((branch,i)=>{
+    const next = data.topics.forEach((branch,i)=>{
         const article = document.createElement("article")
         article.innerHTML = (
-            `<h1 class="name">${branch.Abbr}</h1>
-            <h3 class="desc">${branch.Name}</h2>
+            `<h1 class="abbr">${branch.abbr}</h1>
+            <h3 class="name">${branch.name}</h2>
             <p class="remaining"> Remaining: ${branch.seats}</p>`
             )
         article.classList.add("branch")
@@ -73,10 +67,10 @@ function initUI(data){
 // Updates existing elements. This does not create new elements.
 // This is to keep the CSS Transitions at place.
 function updateUI(data){
-    const topics = data.Topics
+    const topics = data.topics
     branches.forEach((branch,i)=>{
-        branch.querySelector(".name").innerHTML = topics[i].Abbr
-        branch.querySelector(".desc").innerHTML = topics[i].Name
+        branch.querySelector(".abbr").innerHTML = topics[i].abbr
+        branch.querySelector(".name").innerHTML = topics[i].name
         branch.querySelector(".remaining").innerHTML = "Remaining: "+topics[i].seats
         branch.classList.remove("active","unavailable")
         if (data.selection===i){
