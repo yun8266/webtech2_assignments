@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Seat</title>
+    <link rel=stylesheet href="https://s3-us-west-2.amazonaws.com/colors-css/2.2.0/colors.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+
+<body>
+    <nav>
+        <a href="seats.html">
+            <img src="https://pesuacademy.com/Academy/images/pesuimages/logoPesu.png" alt="">
+        </a>
+        <div class="loading" style="display: none;"></div>
+    </nav>
+    <div class="error" style="display: none;">
+    </div>
+    <main>
+        <div class="choose">
+            <h1>Choose Your Branch</h1>
+            <button onclick="forceRefresh()">Refresh Now</button>
+        </div>
+        
+        <div class="branches"></div>
+    </main>
+    <footer>
+        <p>PES University</p>
+    </footer>
+</body>
+<script src="/js/ui.js"></script>
+<script>
+    // Identify this browser with a random name
+    // The student would have logged in at this point but thats not implemented here
+    let name = localStorage.getItem("name")
+    if (!name){
+        name = Math.random().toString() 
+        localStorage.setItem("name",name)
+    }
+
+    let state = 0;
+    let currentSelection;
+    let branches = []
+    let interval=0;
+    let timeout = 500
+    let refreshInterval = 5000
+
+    // List of URL's with fallback
+    const selectURLS = [
+        '/select',
+        '/select2',
+    ]
+
+    const unselectURLS =[
+        '/unselect',
+        '/unselect2'
+    ]
+
+    const getAllURLS = [
+        '/getall',
+        '/getall2'
+    ]
+
+    // Start auto refresh ( This calls the update function periodically)
+    function startAutoRefresh(){
+        if (interval==0)
+            interval = setInterval(update,refreshInterval)
+    }
+
+    // Stop auto refresh
+    function stopAutoRefresh(){
+        if (interval!=0){
+            clearInterval(interval)
+            interval = 0
+        }
+    }
+    
+    async function forceRefresh(){
+        stopAutoRefresh()
+        await update()
+        startAutoRefresh()
+    }
+
+    // Returns a promise. This is useful for the async function which iterates through a list of urls
+    function sendRequest(url,method,data){
+        const xhr = new XMLHttpRequest() 
+        xhr.open(method,url)
+        xhr.timeout = timeout
+        xhr.setRequestHeader("Content-Type","application/json")
+        xhr.send(JSON.stringify(data))
+        return new Promise((resolve,reject)=>{
+            xhr.onreadystatechange = ()=>{
+                if (xhr.readyState==4){
+                    if (xhr.status==200){
+                        resolve(JSON.parse(xhr.responseText),xhr.status)
+                    }
+                    else{
+                        reject({type:'status',xhr:xhr})
+                    }
+                }
+            }
+            xhr.ontimeout = ()=>{
+                reject({type:'timeout',xhr:xhr})
+            }
+        })
+    }
+    
+    /**
+    Send the given request by iterating through a given set of URLs until and stop when the url returns a valid response.
+    In this case it should either return a 200 or 403
+    403 is used when then student selects a subject but that subject is already taken. 
+    This happens when two students send a request in the update interval for a branch  
+    which only has one vacancy.
+    **/
+    async function requestWithFallack(urls,method,data){
+        let lastError;
+        for (let url of urls){
+            try {
+                resp = await sendRequest(url,method,data)
+                return resp
+            }
+            catch(e) {
+                lastError =e
+                if (e.xhr.status==403){
+                    break
+                }
+            }
+        }
+        throw lastError //throw the last error received
+    }
+
+    // Sleep just to mimic a real application delays
+    function sleep(time){
+        return new Promise(r=>setTimeout(r,time))
+    }
+
+    // Initalize the branches by requesting from a list of URL's
+    // If timed out retry in 1 second. Till then show a banner saying Server Timeout
+    async function init(){
+        try{
+            startLoading()
+            await sleep(1000)
+            let res = await requestWithFallack(getAllURLS,'post',{name})
+            initUI(res)
+            startAutoRefresh()
+            stopLoading()
+            hideError()
+            showBranches()
+        }
+        catch(e){
+            if (e.type=="status"){
+                showError("Unexpected Server Error")
+            }
+            else {
+                showError("Server Timeout")
+            }
+            stopAutoRefresh()
+            hideBranches()
+            setTimeout(init,1000) 
+        }
+    }
+
+    // Update the branches using a list of URLS
+    // If timed out retry in 1 second. Till then show a banner saying Server Timeout
+    async function update(){
+        try{
+            startLoading()
+            await sleep(200)
+            let res = await requestWithFallack(getAllURLS,'post',{name})
+            updateUI(res)
+            stopLoading()
+            hideError()
+            showBranches()
+        }
+        catch(e){
+            if (e.type=="status"){
+                showError("Unexpected Server Error")
+            }
+            else {
+                showError("Server Timeout")
+            }
+            hideBranches()
+        }
+    }
+
+    // Unselect a given branch. Show errors similar to above functions
+    async function unselect(el){
+        startLoading()
+        stopAutoRefresh()
+        try {
+            const i = parseInt(el.getAttribute("data-i"))
+            let res = await requestWithFallack(unselectURLS,'post',{selection:i,name})
+            updateUI(res)
+            hideError()
+        }
+        catch{
+            if (e.type=="status"){
+                showError("Unexpected Server Error. Please try again",3000)
+            }
+            else {
+                showError("Server Timeout. Please try again",3000)
+            }
+        }
+        startAutoRefresh()
+        stopLoading()
+    }
+
+    // Select a given branch. Show errors similar to other branches. 
+    // This is the only place where 403 can occur in normal circumstances.
+    async function select(el){
+        startLoading()
+        stopAutoRefresh()
+        try {
+            const i = parseInt(el.getAttribute("data-i"))
+            let res = await requestWithFallack(selectURLS,'post',{selection:i,name})
+            updateUI(res)
+            hideError()
+        }
+        catch(e){
+            if (e.xhr.status==403){
+                showError("Branch Full. Choose another branch")
+                await update()
+            }
+            else if (e.type=="status"){
+                showError("Unexpected Server Error. Please try again",3000)
+            }   
+            else {
+                showError("Server Error. Please try again",3000)
+            }
+        }
+        startAutoRefresh()
+        stopLoading()
+    }
+
+    init()
+    
+</script>
+</html>
